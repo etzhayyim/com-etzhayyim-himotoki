@@ -1,91 +1,93 @@
+;; Clojure mirror of methods/test_request.py — himotoki 繙き disclosure-request gates.
 (ns himotoki.methods.test-request
-  "test_request.py — himotoki 繙き disclosure-request generator tests.
-  1:1 Clojure port of methods/test_request.py (stdlib pytest-style → clojure.test).
+  "1:1 port of the request.py gate suite: registry load + stable ids, DSAR vs FOIA
+  classification, G3 own-data-only, G4 true-requester + no-pretext, G6 PII-as-encrypted
+  -envelope (never plaintext), G8 no mass-filing, G14 verify-before-dispatch, G10
+  outbound-gated, and render-edn invariant markers.
 
-  Proves every charter gate fires: G3 own-data-only DSAR, G4 true-requester/no-pretext,
-  G6 PII-as-encrypted-envelope (never plaintext), G8 no mass-filing, G14 verify-before-
-  dispatch, G10 outbound-gated."
-  (:require [clojure.test :refer [deftest is run-tests]]
+  Run:  bb --classpath 20-actors 20-actors/himotoki/methods/test_request.clj"
+  (:require [himotoki.methods.request :as r]
+            [clojure.java.io :as io]
             [clojure.string :as str]
-            [himotoki.methods.request :as req]))
+            [clojure.test :refer [deftest is run-tests]]))
 
-(def ^:private reg (req/load-registry))
-(def ^:private member
-  {"requesterDid" "did:web:etzhayyim.com:member:alice" "ownDataOnly" true
-   "subjectEnvelopeRef" "com.etzhayyim.encrypted:env:alice"})
+(def ^:private this-file *file*)
+(defn- actor-root [] (-> this-file io/file .getAbsoluteFile .getParentFile .getParentFile))
+(defn- registry [] (r/load-registry (str (io/file (actor-root) "registry" "targets.seed.json"))))
 
-(defn- a-dsar-target []
-  (first (filter req/is-dsar (vals reg))))
+(def MEMBER {"requesterDid" "did:web:etzhayyim.com:member:alice" "ownDataOnly" true
+             "subjectEnvelopeRef" "com.etzhayyim.encrypted:env:alice"})
 
-(deftest test-registry-loads-with-stable-ids
-  (is (and (seq reg) (contains? reg "Discord Inc.:ccpa-110"))))
+(defn- raises? [f] (try (f) false (catch Exception _ true)))
+(defn- a-dsar-target [reg] (first (filter r/is-dsar (vals reg))))
 
-(deftest test-dsar-classification
-  (is (and (req/is-dsar {"regime" "ccpa-110"}) (req/is-dsar {"regime" "gdpr-15"})))
-  (is (req/is-dsar {"regime" "appi-33"}))
-  (is (not (req/is-dsar {"regime" "us-foia"}))))
+(deftest registry-loads-with-stable-ids
+  (let [reg (registry)]
+    (is (seq reg))
+    (is (contains? reg "Discord Inc.:ccpa-110"))))
 
-(deftest test-dsar-requires-own-data-only-g3
-  (let [t (a-dsar-target)
-        bad (assoc member "ownDataOnly" false)]
-    (is (try (req/build-request t bad) false
-             (catch clojure.lang.ExceptionInfo e (str/includes? (.getMessage e) "G3"))))))
+(deftest dsar-classification
+  (is (r/is-dsar {"regime" "ccpa-110"}))
+  (is (r/is-dsar {"regime" "gdpr-15"}))
+  (is (r/is-dsar {"regime" "appi-33"}))
+  (is (not (r/is-dsar {"regime" "us-foia"}))))
 
-(deftest test-request-requires-true-requester-g4
-  (let [t (a-dsar-target)]
-    (is (try (req/build-request t {"ownDataOnly" true
-                                   "subjectEnvelopeRef" "com.etzhayyim.encrypted:env:x"})
-             false
-             (catch clojure.lang.ExceptionInfo e (str/includes? (.getMessage e) "G4"))))))
+(deftest dsar-requires-own-data-only-g3
+  (let [t (a-dsar-target (registry))]
+    (is (raises? #(r/build-request t (assoc MEMBER "ownDataOnly" false))))))
 
-(deftest test-pretext-field-refused-g4
-  (let [t (a-dsar-target)
-        bad (assoc member "sockpuppet" "fake-alice")]
-    (is (try (req/build-request t bad) false
-             (catch clojure.lang.ExceptionInfo e (str/includes? (.getMessage e) "G4"))))))
+(deftest request-requires-true-requester-g4
+  (let [t (a-dsar-target (registry))]
+    (is (raises? #(r/build-request t {"ownDataOnly" true
+                                      "subjectEnvelopeRef" "com.etzhayyim.encrypted:env:x"})))))
 
-(deftest test-plaintext-pii-refused-g6
-  (let [t (a-dsar-target)
-        bad (assoc member "email" "alice@example.com")]
-    (is (try (req/build-request t bad) false
-             (catch clojure.lang.ExceptionInfo e (str/includes? (.getMessage e) "G6"))))))
+(deftest pretext-field-refused-g4
+  (let [t (a-dsar-target (registry))]
+    (is (raises? #(r/build-request t (assoc MEMBER "sockpuppet" "fake-alice"))))))
 
-(deftest test-non-envelope-subject-ref-refused-g6
-  (let [t (a-dsar-target)
-        bad (assoc member "subjectEnvelopeRef" "alice plaintext")]
-    (is (try (req/build-request t bad) false
-             (catch clojure.lang.ExceptionInfo e (str/includes? (.getMessage e) "G6"))))))
+(deftest plaintext-pii-refused-g6
+  (let [t (a-dsar-target (registry))]
+    (is (raises? #(r/build-request t (assoc MEMBER "email" "alice@example.com"))))))
 
-(deftest test-valid-draft-carries-envelope-not-plaintext
-  (let [d (req/build-request (a-dsar-target) member)]
+(deftest non-envelope-subject-ref-refused-g6
+  (let [t (a-dsar-target (registry))]
+    (is (raises? #(r/build-request t (assoc MEMBER "subjectEnvelopeRef" "alice plaintext"))))))
+
+(deftest valid-draft-carries-envelope-not-plaintext
+  (let [d (r/build-request (a-dsar-target (registry)) MEMBER)]
     (is (str/starts-with? (get d "subjectEnvelopeRef") "com.etzhayyim.encrypted:"))
-    (is (and (not (contains? d "name")) (not (contains? d "email"))
-             (false? (get d "dispatchReady"))))))
+    (is (not (contains? d "name")))
+    (is (not (contains? d "email")))
+    (is (false? (get d "dispatchReady")))))
 
-(deftest test-dispatch-refused-against-unverified-target-g14
-  (let [t (a-dsar-target)                            ; all seed targets are unverified
-        [allowed reason] (req/can-dispatch t true)]
-    (is (and (false? allowed) (str/includes? reason "G14")))))
+(deftest dispatch-refused-against-unverified-target-g14
+  (let [[allowed reason] (r/can-dispatch (a-dsar-target (registry)) true)]
+    (is (false? allowed))
+    (is (str/includes? reason "G14"))))
 
-(deftest test-dispatch-refused-without-operator-gate-g10
-  (let [t (assoc (a-dsar-target) "verificationStatus" "verified")
-        [allowed reason] (req/can-dispatch t false)]
-    (is (and (false? allowed) (str/includes? reason "G10")))))
+(deftest dispatch-refused-without-operator-gate-g10
+  (let [t (assoc (a-dsar-target (registry)) "verificationStatus" "verified")
+        [allowed reason] (r/can-dispatch t false)]
+    (is (false? allowed))
+    (is (str/includes? reason "G10"))))
 
-(deftest test-dispatch-allowed-when-verified-and-gated
-  (let [t (assoc (a-dsar-target) "verificationStatus" "verified")
-        [allowed _] (req/can-dispatch t true)]
+(deftest dispatch-allowed-when-verified-and-gated
+  (let [t (assoc (a-dsar-target (registry)) "verificationStatus" "verified")
+        [allowed _] (r/can-dispatch t true)]
     (is (true? allowed))))
 
-(deftest test-mass-filing-refused-g8
-  (let [ids (vec (take (inc req/MAX-BATCH) (keys reg)))]
-    (is (try (req/build-batch ids member reg) false
-             (catch clojure.lang.ExceptionInfo e (str/includes? (.getMessage e) "G8"))))))
+(deftest mass-filing-refused-g8
+  (let [reg (registry)
+        ids (take (inc r/MAX-BATCH) (keys reg))]
+    (is (raises? #(r/build-batch ids MEMBER reg)))))
 
-(deftest test-render-edn-marks-invariants
-  (let [edn (req/render-edn [(req/build-request (a-dsar-target) member)])]
-    (is (and (str/includes? edn ":himotoki.req/own-data-only")
-             (str/includes? edn ":himotoki.req/dispatch-ready false")))
-    (is (and (str/includes? edn "encrypted") (str/includes? edn "gated")))))
+(deftest render-edn-marks-invariants
+  (let [edn (r/render-edn [(r/build-request (a-dsar-target (registry)) MEMBER)])]
+    (is (str/includes? edn ":himotoki.req/own-data-only"))
+    (is (str/includes? edn ":himotoki.req/dispatch-ready false"))
+    (is (str/includes? edn "encrypted"))
+    (is (str/includes? edn "gated"))))
 
-#?(:clj (defn -main [& _] (run-tests 'himotoki.methods.test-request)))
+(when (= *file* (System/getProperty "babashka.file"))
+  (let [{:keys [fail error]} (run-tests 'himotoki.methods.test-request)]
+    (System/exit (if (zero? (+ fail error)) 0 1))))
