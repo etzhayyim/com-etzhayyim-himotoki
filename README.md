@@ -32,9 +32,9 @@ portal / 手続き / 手数料 / 法定期限** as coded
 `com.etzhayyim.himotoki.disclosureTarget` records so a cell can route and
 file procedurally.
 
-- Seed: [`registry/targets.seed.json`](registry/targets.seed.json) — 6
-  entries (Discord / Google / LINE / Meta / Amazon / JP 行政機関 template),
-  **all `unverified-seed`**.
+- Canonical seed: [`registry/targets.seed.edn`](registry/targets.seed.edn) — 65
+  targets across 41 jurisdictions, **all `unverified-seed`**. JSON is an external
+  projection under `wire/registry/`.
 - **Honesty gate (G14):** no live dispatch against an `unverified-seed` or
   stale entry. Seeds are routing scaffolds; live filing requires
   `maintainer-verified` (FOIA) / `council-verified` (named controller /
@@ -93,6 +93,6 @@ only) → R2 FOIA live dispatch (public records) → R3 DSAR live dispatch
 
 ## References
 
-- ADR: [`/90-docs/adr/2605302130-himotoki-disclosure-request-tier-b-actor-r0.md`](/90-docs/adr/2605302130-himotoki-disclosure-request-tier-b-actor-r0.md)
-- Lexicons: [`/00-contracts/lexicons/com/etzhayyim/himotoki/`](/00-contracts/lexicons/com/etzhayyim/himotoki/)
-- Charter Rider: [`/CHARTER-RIDER.md`](/CHARTER-RIDER.md)
+- `manifest.edn`, `identity.edn`, `dependencies.edn` — canonical metadata
+- `lex/` — canonical EDN lexicons; `wire/lex/` — JSON projections
+- Root ADRs and sibling actors are exact-SHA pinned in `dependencies.edn`

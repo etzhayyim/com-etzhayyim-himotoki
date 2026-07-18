@@ -69,8 +69,8 @@
     ]
   },
   "codedTargetRegistry": {
-    "description": "The user's explicit requirement (2026-05-30): every organization's 窓口 / 住所 / 連絡先 / メールアドレス / 手続き encoded so the actor can file procedurally. Lives as com.etzhayyim.himotoki.disclosureTarget records; seed at registry/targets.seed.json.",
-    "seedFile": "/20-actors/himotoki/registry/targets.seed.json",
+    "description": "The user's explicit requirement (2026-05-30): every organization's 窓口 / 住所 / 連絡先 / メールアドレス / 手続き encoded so the actor can file procedurally. Lives as com.etzhayyim.himotoki.disclosureTarget records; canonical seed is registry/targets.seed.edn.",
+    "seedFile": "wire/registry/targets.seed.json",
     "seedTargets": ["Discord", "Google/Alphabet", "LY Corporation (LINE)", "Meta", "Amazon (incl. amazon.co.jp)", "日本国 行政機関 template (行政文書開示請求)"],
     "verificationGate": "G14 — all seed entries ship verificationStatus=unverified-seed; NO live dispatch until maintainer-verified/council-verified within freshnessWindowDays."
   },
@@ -147,7 +147,7 @@
       "tadoriSibling": "/90-docs/adr/2605301400-tadori-onchain-tracing-actor-and-kotoba-eavt-migration.md",
       "manimani": "/90-docs/adr/2605291100-manimani-kotoba-native-personal-knowledge-router.md"
     },
-    "registrySeed": "/20-actors/himotoki/registry/targets.seed.json"
+    "registrySeed": "wire/registry/targets.seed.json"
   },
   "yirah": {
     "adr": "2606112200",

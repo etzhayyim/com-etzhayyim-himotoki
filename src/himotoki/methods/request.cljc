@@ -12,9 +12,9 @@
     G14 verify-before-dispatch (refused vs unverified/stale target).
     G10 outbound-gated (live dispatch needs the operator gate).
 
-  Maps use string keys (mirroring the Python dicts / parsed JSON). JSON registry
-  load lives at the #?(:clj) edge."
-  (:require [clojure.string :as str]))
+  Maps use string keys so canonical EDN and JSON wire projections have identical shapes."
+  (:require [clojure.string :as str]
+            #?(:clj [clojure.edn :as edn])))
 
 (def MAX-BATCH 5)
 (def ^:private dsar-regime-prefixes ["gdpr" "ccpa" "cpra" "appi" "lgpd" "pipeda" "pdpa" "pipl"])
@@ -141,10 +141,9 @@
 
 #?(:clj
    (defn load-registry
-     "Return {targetId target}; targetId = '<organization>:<regime>'. JSON I/O edge.
-     `path` points at registry/targets.seed.json."
+     "Return {targetId target}; targetId = '<organization>:<regime>'.
+     `path` points at canonical registry/targets.seed.edn."
      [path]
-     (let [parse @(requiring-resolve 'cheshire.core/parse-string)
-           d (parse (slurp (str path)))]
+     (let [d (edn/read-string (slurp (str path)))]
        (reduce (fn [m t] (assoc m (str (get t "organization") ":" (get t "regime")) t))
                {} (get d "targets" [])))))

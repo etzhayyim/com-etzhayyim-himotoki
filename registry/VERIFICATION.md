@@ -1,7 +1,7 @@
 # himotoki disclosure-target registry — Verification Workflow (G14)
 
 Per ADR-2605302130 §2 + §4 (G14 verified-target-only dispatch). Every
-`com.etzhayyim.himotoki.disclosureTarget` entry in `targets.seed.json` ships
+`com.etzhayyim.himotoki.disclosureTarget` entry in canonical `targets.seed.edn` ships
 `verificationStatus = unverified-seed` and **no live disclosure request
 (`himotoki_dispatch`) may run against an unverified-seed or stale entry**. This
 file documents how an entry is moved through the three tiers — the human/Council
@@ -21,7 +21,7 @@ checks that gate `himotoki_dispatch`.
 | `maintainer-verified` | a maintainer has re-checked all fields against the **official disclosure channel** within the freshness window | disclosure-verification maintainer DID | **member self-directed dispatch** of the member's OWN DSAR / a public-records FOIA via `himotoki_dispatch` (R2) |
 | `council-verified` | Council-reviewed; eligible for any 代行/bulk-sensitive routing + FOIA public re-disclosure | Council Lv6+ (FOIA public re-disclosure additionally needs the §1.12 / 1-SBT-1-vote path per G11) | broader-exposure dispatch eligibility + re-disclosure (R3) |
 
-`freshnessWindowDays` (currently **180**, set at the top of `targets.seed.json`)
+`freshnessWindowDays` (currently **180**, set at the top of `targets.seed.edn`)
 bounds staleness: an entry whose `lastVerified` is older than the window is
 treated as unverified for dispatch even if its status is `maintainer-verified`.
 DSAR/FOIA contact data (portal URLs, controller DPO addresses, agency intake

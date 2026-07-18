@@ -1,6 +1,6 @@
 #!/usr/bin/env bb
 ;; himotoki 繙き — tests for the deadline_tracker status read.
-;; Run:  bb --classpath 20-actors 20-actors/himotoki/methods/test_deadline_status.cljc
+;; Run as part of: bb run_tests.clj
 (ns himotoki.methods.test-deadline-status
   "Tests for deadline-status — the operational status of an outstanding request's response clock
   (open / due-soon / overdue / appeal-eligible), pure arithmetic over the request's own

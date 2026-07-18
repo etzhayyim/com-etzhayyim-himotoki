@@ -3,15 +3,23 @@
   Substrate-native Clojure (ADR-2606160842). 1:1 port of the pruned methods/test_charter_gates.py."
   (:require [clojure.test :refer [deftest is run-tests]]
             [clojure.set :as set]
-            [cheshire.core :as json]))
+            [clojure.edn :as edn]))
 
 (def ^:private here (.getParentFile (java.io.File. ^String *file*)))      ;; methods/
-(def ^:private actor-dir (.getParentFile here))                          ;; himotoki/
-(def ^:private actor-name (.getName actor-dir))
-(def ^:private root (.. actor-dir getParentFile getParentFile))          ;; 20-actors → ROOT
-(def ^:private lexdir (java.io.File. root (str "00-contracts/lexicons/com/etzhayyim/" actor-name)))
-(defn- manifest [] (json/parse-string (slurp (java.io.File. actor-dir "manifest.jsonld"))))
-(defn- lex [name] (json/parse-string (slurp (java.io.File. lexdir (str name ".json")))))
+(def ^:private actor-dir (-> here .getParentFile .getParentFile .getParentFile))
+(def ^:private lexdir (java.io.File. actor-dir "lex"))
+(defn- manifest []
+  (let [e (clojure.edn/read-string (slurp (java.io.File. actor-dir "manifest.edn")))
+        gm (into {} (map (fn [g] [(:gate/id g) g]) (:actor/gates e)))]
+    {"constitutionalGates" {"gates" gm}
+     "gates" gm
+     "nonGoals" (:actor/non-goals e)
+     "cells" (:actor/cells e)
+     "name" (:actor/id e)
+     "purpose" (:actor/purpose e)
+     "tier" "Tier-B"
+     "status" (some-> (:actor/status e) name)}))
+(defn- lex [name] (edn/read-string (slurp (java.io.File. lexdir (str name ".edn")))))
 
 (defn- collect [doc attr]
   (let [acc (atom {})]
