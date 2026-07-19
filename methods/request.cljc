@@ -12,8 +12,8 @@
     G14 verify-before-dispatch (refused vs unverified/stale target).
     G10 outbound-gated (live dispatch needs the operator gate).
 
-  Maps use string keys (mirroring the Python dicts / parsed JSON). JSON registry
-  load lives at the #?(:clj) edge."
+  Maps use string keys (mirroring the Python dicts / parsed JSON). This portable
+  namespace accepts decoded registry data; JSON and file I/O are host concerns."
   (:require [clojure.string :as str]))
 
 (def MAX-BATCH 5)
@@ -139,12 +139,21 @@
                   drafts)]
     (str (str/join "\n" (concat head rows ["]"])) "\n")))
 
-#?(:clj
-   (defn load-registry
-     "Return {targetId target}; targetId = '<organization>:<regime>'. JSON I/O edge.
-     `path` points at registry/targets.seed.json."
-     [path]
-     (let [parse @(requiring-resolve 'cheshire.core/parse-string)
-           d (parse (slurp (str path)))]
-       (reduce (fn [m t] (assoc m (str (get t "organization") ":" (get t "regime")) t))
-               {} (get d "targets" [])))))
+(defn index-registry
+  "Return {targetId target} from a decoded registry document.
+  targetId = '<organization>:<regime>'. JSON/file authority is deliberately not
+  accepted here."
+  [document]
+  (when-not (map? document)
+    (throw (ex-info "registry document must be a decoded map"
+                    {:himotoki/capability :decoded-registry})))
+  (let [targets (get document "targets")]
+    (when-not (sequential? targets)
+      (throw (ex-info "registry document must contain a sequential targets field"
+                      {:himotoki/capability :decoded-registry})))
+    (reduce (fn [m t]
+              (when-not (map? t)
+                (throw (ex-info "every registry target must be a map"
+                                {:himotoki/capability :decoded-registry})))
+              (assoc m (str (get t "organization") ":" (get t "regime")) t))
+            {} targets)))

@@ -7,13 +7,14 @@
 
   Run:  bb --classpath 20-actors 20-actors/himotoki/methods/test_request.clj"
   (:require [himotoki.methods.request :as r]
+            #?(:clj [himotoki.methods.request-host :as request-host])
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer [deftest is run-tests]]))
 
 (def ^:private this-file *file*)
 (defn- actor-root [] (-> this-file io/file .getAbsoluteFile .getParentFile .getParentFile))
-(defn- registry [] (r/load-registry (str (io/file (actor-root) "registry" "targets.seed.json"))))
+(defn- registry [] (request-host/load-registry (str (io/file (actor-root) "registry" "targets.seed.json"))))
 
 (def MEMBER {"requesterDid" "did:web:etzhayyim.com:member:alice" "ownDataOnly" true
              "subjectEnvelopeRef" "com.etzhayyim.encrypted:env:alice"})
@@ -25,6 +26,11 @@
   (let [reg (registry)]
     (is (seq reg))
     (is (contains? reg "Discord Inc.:ccpa-110"))))
+
+(deftest registry-indexer-refuses-undecoded-or-malformed-input
+  (is (raises? #(r/index-registry "{\"targets\": []}")))
+  (is (raises? #(r/index-registry {})))
+  (is (raises? #(r/index-registry {"targets" ["not-a-map"]}))))
 
 (deftest dsar-classification
   (is (r/is-dsar {"regime" "ccpa-110"}))
